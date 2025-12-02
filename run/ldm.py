@@ -350,7 +350,6 @@ def main():
         unrep_ae_params = jax.device_get(jax.tree_util.tree_map(lambda x: x[0], ae_params))
         posterior0 = ae_model.apply({'params': unrep_ae_params}, x0, method=ae_model.encode, train=False)
         z0 = posterior0.mode() * args.latent_scale_factor  # fixed latent, no encode noise
-        # Repeat to global batch then shard
         global_bs = args.batch_per_device * jax.local_device_count()
         z0_tiled = jnp.tile(z0, (global_bs, 1, 1, 1))
         precomputed_z0 = z0_tiled.reshape((jax.local_device_count(), -1) + z0.shape[1:])

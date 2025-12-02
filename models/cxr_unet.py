@@ -62,27 +62,18 @@ class SelfAttention2D(nn.Module):
         return x + h
 
 class ScoreNet(nn.Module):
-    # MODIFIED: Default channels updated for 32x32 latent space input
     z_channels: int = 3
     channels: Sequence[int] = (128, 256, 512)
     embed_dim: int = 256
     num_res_blocks: int = 2
     attn_resolutions: Tuple[int, ...] = (16,) # Apply attention at 16x16
     num_heads: int = 4
-
     @nn.compact
     def __call__(self, x, t):
-        # NOTE: The marginal_prob_std function is now passed to the loss function,
-        # not stored in the model, to keep the model definition clean.
         act = nn.swish
-        # Time embedding
         temb = act(nn.Dense(self.embed_dim)(GaussianFourierProjection(self.embed_dim)(t)))
-
-        # --- Encoder ---
-        # Initial projection
         h = nn.Conv(self.channels[0], (3,3), padding='SAME')(x)
         skips = [h]
-        # Downsampling blocks
         for i, ch in enumerate(self.channels):
             for _ in range(self.num_res_blocks):
                 h = ResBlock(ch, self.embed_dim)(h, temb)
@@ -111,7 +102,6 @@ class ScoreNet(nn.Module):
         # Final projection
         h = nn.GroupNorm(num_groups=_pick_gn_groups(h.shape[-1]))(h)
         h = act(h)
-        # MODIFIED: Output has z_channels (3) instead of 1
         out = nn.Conv(self.z_channels, (3,3), padding='SAME',
                       kernel_init=nn.initializers.zeros)(h)
         return out
