@@ -424,6 +424,7 @@ def main():
             # Your dataset tensor is in [-1,1]; AE expects [0,1]
             x = (x + 1.0) / 2.0
             x_sharded = x.reshape((jax.local_device_count(), -1) + x.shape[1:])
+            # sharded_y = y_np.reshape(jax.local_device_count(), -1)?
 
             rng, step_rng = jax.random.split(rng)
             rng_sharded = jax.random.split(step_rng, jax.local_device_count())
