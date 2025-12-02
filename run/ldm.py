@@ -133,22 +133,17 @@ def parse_args():
     p = argparse.ArgumentParser("JAX Latent Diffusion Model (CXR) Trainer")
     # --- Data & Debugging ---
     p.add_argument("--data_root", default="../datasets/cleaned")
-    p.add_argument("--task", choices=["TB", "PNEUMONIA"], default="TB")
+    p.add_argument("--task", choices=["TB","PNEUMONIA", "All_CXR"], default="TB")
     p.add_argument("--split", choices=["train", "val", "test"], default="train")
     p.add_argument("--img_size", type=int, default=256)
-    p.add_argument("--class_filter", type=int, default=1,
+    p.add_argument("--class_filter", type=int, default=-1,
                    help="Optional: keep a class index only (e.g., 1 for disease, 0 for normal)")
+    p.add_argument("--num_classes", type=int, default=2, help="Number of classes (e.g. 2 for TB/Normal)")
     p.add_argument("--overfit_one", action="store_true", help="Repeat a single sample to overfit.")
-    # p.add_argument(
-    #     "--overfit_one",
-    #     type=bool,
-    #     default=False,
-    #     help="Overfit on a single batch of data."
-    # )
     p.add_argument("--overfit_k", type=int, default=0, help="If >0, train on a fixed tiny subset of size K.")
     p.add_argument("--repeat_len", type=int, default=500,
                    help="Virtual length for the repeated one-sample dataset.")
-
+    p.add_argument("--prob_uncond", type=float, default=0.1, help="Probability of dropping the label for CFG training.")
     # --- Pretrained Autoencoder ---
     p.add_argument("--ae_ckpt_path", required=True, help="Path to the last.flax of the pretrained autoencoder.")
     p.add_argument("--ae_config_path", required=True, help="Path to the run_meta.json of the AE run.")
@@ -176,6 +171,8 @@ def parse_args():
     p.add_argument("--log_every", type=int, default=100)
     p.add_argument("--sample_every", type=int, default=5)
     p.add_argument("--sample_batch_size", type=int, default=16)
+    p.add_argument("--guidance_scale", type=float, default=4.0, help="Classifier-Free Guidance scale for sampling.")
+
     # 2. Add EMA command-line arguments
     p.add_argument("--use_ema", action="store_true", help="Enable EMA for model parameters.")
     p.add_argument("--ema_decay", type=float, default=0.999, help="Decay rate for EMA.")
@@ -258,10 +255,11 @@ def main():
     ckpt_latest = os.path.join(ckpt_dir, "last.flax")
     with open(os.path.join(run_dir, "ldm_meta.json"), "w") as f:
         json.dump(vars(args), f, indent=2)
-
+    filter_val = None if args.class_filter == -1 else args.class_filter
     # --- Setup Dataset ---
     base_ds = ChestXrayDataset(root_dir=args.data_root, task=args.task, split=args.split, img_size=args.img_size,
-                               class_filter=args.class_filter)
+                               class_filter=filter_val)
+    print(f"Dataset Size: {len(base_ds)}. Class Filter: {filter_val} (None means all).")
     batch_size = args.batch_per_device * jax.local_device_count()
     if args.overfit_one:
         ds = Subset(base_ds, [0])
@@ -304,21 +302,18 @@ def main():
     ldm_chans = tuple(args.ldm_base_ch * int(m) for m in args.ldm_ch_mults.split(','))
     attn_res = tuple(int(r) for r in args.ldm_attn_res.split(','))
     ldm_model = ScoreNet(z_channels=z_channels, channels=ldm_chans,
-                         num_res_blocks=args.ldm_num_res_blocks, attn_resolutions=attn_res)
+                         num_res_blocks=args.ldm_num_res_blocks, attn_resolutions=attn_res,
+                         num_classes=args.num_classes)
     rng, init_rng = jax.random.split(rng)
     fake_latent = jnp.ones((1, latent_size, latent_size, z_channels))
     fake_time = jnp.ones((1,))
-    ldm_params = ldm_model.init(init_rng, fake_latent, fake_time)['params']
+    fake_y = jnp.ones((1,), dtype=jnp.int32)
+    ldm_params = ldm_model.init(init_rng, fake_latent, fake_time, fake_y)['params']
 
     # --- Setup TrainState ---
     tx = optax.chain(optax.clip_by_global_norm(args.grad_clip), optax.adamw(args.lr, weight_decay=args.weight_decay))
     ema_params = ldm_params if args.use_ema else None
-    ldm_state = TrainStateWithEMA.create(
-        apply_fn=ldm_model.apply,
-        params=ldm_params,
-        ema_params=ema_params,  # Add this line
-        tx=tx
-    )
+    ldm_state = TrainStateWithEMA.create(apply_fn=ldm_model.apply, params=ldm_params, ema_params=ema_params, tx=tx)
     if args.resume_dir and tf.io.gfile.exists(ckpt_latest):
         print(f"[info] Resuming LDM from {ckpt_latest}")
         with tf.io.gfile.GFile(ckpt_latest, "rb") as f:
@@ -356,18 +351,14 @@ def main():
         print("Precomputed z0 for overfit-one:", precomputed_z0.shape)
 
     # --- Define Training Step ---
-    def train_step(rng, ldm_state, ae_params, x_batch, precomputed_z0):
+    def train_step(rng, ldm_state, ae_params, x_batch, y_batch):
         """One pmap-ed training step."""
         # x_batch: images in [0,1]; you already encode -> z elsewhere if needed.
-        rng, rng_diff = jax.random.split(rng, 2)
+        rng, rng_diff, rng_drop = jax.random.split(rng, 3)
 
         def loss_fn(ldm_params):
-            if precomputed_z0 is not None:
-                z = precomputed_z0
-            else:
-                posterior = ae_model.apply({'params': ae_params}, x_batch, method=ae_model.encode, train=False)
-                z = posterior.sample(rng) * args.latent_scale_factor
-
+            posterior = ae_model.apply({'params': ae_params}, x_batch, method=ae_model.encode, train=False)
+            z = posterior.sample(rng) * args.latent_scale_factor
             # Sample t ~ U(1e-5, 1) and ε ~ N(0, I)
             rng_t, rng_noise = jax.random.split(rng_diff, 2)
             t = jax.random.uniform(rng_t, (z.shape[0],), minval=1e-5, maxval=1.0)
@@ -380,8 +371,11 @@ def main():
             alpha_b = alpha[:, None, None, None]
             x_t = alpha_b * z + sigma_b * noise  # x_t = α z + σ ε
 
+            keep_mask = jax.random.bernoulli(rng_drop, p=(1.0 - args.prob_uncond), shape=y_batch.shape)
+            y_in = jnp.where(keep_mask, y_batch, args.num_classes)
+
             # Predict ε and compute simple ε-MSE
-            eps_hat = ldm_model.apply({'params': ldm_params}, x_t, t)  # [B,H,W,C]
+            eps_hat = ldm_model.apply({'params': ldm_params}, x_t, t, y=y_in)  # [B,H,W,C]
             loss = jnp.mean((eps_hat - noise) ** 2)
             def _cos(a, b, eps=1e-8):
                 num = jnp.sum(a * b, axis=tuple(range(1, a.ndim)))
@@ -400,6 +394,7 @@ def main():
             )
             return loss, aux
         (loss, aux), grads = jax.value_and_grad(loss_fn, has_aux=True)(ldm_state.params)
+        grads = jax.lax.pmean(grads, axis_name='device')
         grad_norm = optax.global_norm(grads)
         aux = jax.tree_util.tree_map(lambda x: jax.lax.pmean(x, axis_name='device'), aux)
         aux = {**aux, "grad_norm": jax.lax.pmean(grad_norm, axis_name='device')}
@@ -419,17 +414,18 @@ def main():
     for ep in range(args.epochs):
         progress_bar = tqdm(loader, desc=f"Epoch {ep + 1}/{args.epochs}", leave=False)
         for batch in progress_bar:
-            x, _ = batch
+            x, y = batch
+            # Prepare X
             x = jnp.asarray(x.numpy()).transpose(0, 2, 3, 1)
-            # Your dataset tensor is in [-1,1]; AE expects [0,1]
-            x = (x + 1.0) / 2.0
+            x = (x + 1.0) / 2.0 # [-1,1] -> [0,1]
             x_sharded = x.reshape((jax.local_device_count(), -1) + x.shape[1:])
-            # sharded_y = y_np.reshape(jax.local_device_count(), -1)?
+            # Prepare Y
+            y = jnp.asarray(y.numpy())
+            y_sharded = y.reshape((jax.local_device_count(), -1))
 
             rng, step_rng = jax.random.split(rng)
             rng_sharded = jax.random.split(step_rng, jax.local_device_count())
-            # ldm_state, loss = pmapped_train_step(rng_sharded, ldm_state, ae_params, x_sharded, precomputed_z0)
-            ldm_state, loss, aux = pmapped_train_step(rng_sharded, ldm_state, ae_params, x_sharded, precomputed_z0)
+            ldm_state, loss, aux = pmapped_train_step(rng_sharded, ldm_state, ae_params, x_sharded, y_sharded)
 
             if global_step % args.log_every == 0:
                 loss_val = float(np.asarray(loss[0]))
@@ -464,65 +460,28 @@ def main():
             unrep_ldm_params = jax.device_get(jax.tree_util.tree_map(lambda x: x[0], ldm_state.params))
             unrep_ae_params = jax.device_get(jax.tree_util.tree_map(lambda x: x[0], ae_params))
 
-            if args.use_ema and ldm_state.ema_params is not None:
-                print("[info] Using EMA parameters for sampling.")
-                sampling_params = jax.device_get(jax.tree_util.tree_map(lambda x: x[0], ldm_state.ema_params))
-            else:
-                sampling_params = unrep_ldm_params
+            # Construct conditional labels: e.g., first half class 0, second half class 1
+            bs = args.sample_batch_size
+            y_sample = np.zeros((bs,), dtype=np.int32)
+            half = bs // 2
+            y_sample[half:] = 1  # Set second half to TB (if class 1 is TB)
+            y_sample = jnp.array(y_sample)
 
-            # --- sanity A: decode the fixed training latent (z0) directly ---
-            if precomputed_z0 is not None:
-                # take device-0 slice and undo sharding
-                z0_host = jax.device_get(precomputed_z0[0, 0:1, ...])  # shape (1,H,W,C) on host
-                # IMPORTANT: the AE expects latents divided by the scale factor
-                z0_for_decode = z0_host / args.latent_scale_factor
-                x0_hat = ae_model.apply({'params': unrep_ae_params}, z0_for_decode, method=ae_model.decode, train=False)
-                x0_hat = jnp.clip(x0_hat, 0., 1.)
-                x0_hat = jnp.transpose(x0_hat, (0, 3, 1, 2))  # NHWC -> NCHW
-                x0_hat_t = torch.from_numpy(np.asarray(x0_hat))
-                save_image(x0_hat_t, os.path.join(samples_dir, f"sanityA_recon_z0_ep{ep + 1:04d}.png"))
-
-            # --- sanity B: decode a noisy latent at mid-time (t=0.5) ---
-            if precomputed_z0 is not None:
-                mid_t = jnp.ones((1,)) * 0.5
-                std_mid = marginal_prob_std_fn(mid_t)[0]
-                rng_tmp = jax.random.PRNGKey(123)
-                noisy = z0_host + std_mid * jax.random.normal(rng_tmp, z0_host.shape)
-                noisy_for_decode = noisy / args.latent_scale_factor
-                x_mid = ae_model.apply({'params': unrep_ae_params}, noisy_for_decode, method=ae_model.decode,
-                                       train=False)
-                x_mid = jnp.clip(x_mid, 0., 1.)
-                x_mid = jnp.transpose(x_mid, (0, 3, 1, 2))
-                x_mid_t = torch.from_numpy(np.asarray(x_mid))
-                save_image(x_mid_t, os.path.join(samples_dir, f"sanityB_decode_noisy_latent_ep{ep + 1:04d}.png"))
-            if args.use_ema:
-                open_block("ema", step=global_step, epoch=ep + 1, note="Validate EMA Impact")
-                flat_params = jnp.concatenate([jnp.ravel(x) for x in jax.tree_util.tree_leaves(unrep_ldm_params)])
-                flat_ema_params = jnp.concatenate([jnp.ravel(x) for x in jax.tree_util.tree_leaves(sampling_params)])
-                cosine_sim = jnp.dot(flat_params, flat_ema_params) / (
-                            jnp.linalg.norm(flat_params) * jnp.linalg.norm(flat_ema_params))
-                print(f"[info] Cosine similarity between base and EMA weights: {cosine_sim:.6f}")
-                pretty_table("ema", metrics)
-                close_block("ema", step=global_step)
-
-                if use_wandb:
-                    wandb.log({"train/cosine_similarity": float(cosine_sim), "epoch": ep + 1})
-
-            open_block("sample", step=global_step, epoch=ep + 1, note="Euler-Maruyama SDE Sampler")
-            sample_rng = jax.random.fold_in(rng, ep + 1)
-            sample_rng = jax.random.fold_in(sample_rng, global_step)
             samples_grid, final_latent = Euler_Maruyama_sampler(
                 rng=sample_rng,
                 ldm_model=ldm_model,
-                ldm_params=sampling_params,
+                ldm_params=unrep_ldm_params,
                 ae_model=ae_model,
                 ae_params=unrep_ae_params,
                 marginal_prob_std_fn=marginal_prob_std_fn,
                 diffusion_coeff_fn=diffusion_coeff_fn,
                 latent_size=latent_size,
-                batch_size=args.sample_batch_size,
+                batch_size=bs,
                 z_channels=z_channels,
-                z_std=args.latent_scale_factor
+                z_std=args.latent_scale_factor,
+                y=y_sample,
+                guidance_scale=args.guidance_scale,
+                num_classes=args.num_classes
             )
             final_latent_np = np.asarray(final_latent)
             log_sample_diversity(final_latent_np, step=global_step, epoch=ep + 1)

@@ -68,10 +68,18 @@ class ScoreNet(nn.Module):
     num_res_blocks: int = 2
     attn_resolutions: Tuple[int, ...] = (16,) # Apply attention at 16x16
     num_heads: int = 4
+    num_classes: int = 2
+
     @nn.compact
-    def __call__(self, x, t):
+    def __call__(self, x, t, y=None, train: bool = True):
         act = nn.swish
         temb = act(nn.Dense(self.embed_dim)(GaussianFourierProjection(self.embed_dim)(t)))
+        if y is not None:
+            # We use num_classes + 1 embeddings.
+            # The index `num_classes` corresponds to the "null" (unconditional) token.
+            class_embed = nn.Embed(num_embeddings=self.num_classes + 1, features=self.embed_dim)(y)
+            temb = temb + class_embed
+
         h = nn.Conv(self.channels[0], (3,3), padding='SAME')(x)
         skips = [h]
         for i, ch in enumerate(self.channels):

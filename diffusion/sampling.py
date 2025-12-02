@@ -25,7 +25,8 @@ def Euler_Maruyama_sampler(
     rng, ldm_model, ldm_params, ae_model, ae_params,
     marginal_prob_std_fn, diffusion_coeff_fn,
     latent_size, batch_size, z_channels, z_std=1.0,
-    n_steps=700, eps=1e-3  # Use eps=1e-3 for stability with this SDE
+    n_steps=700, eps=1e-3,  # Use eps=1e-3 for stability with this SDE
+    y=None, guidance_scale=1.0, num_classes=2
 ):
     """
     Corrected Euler-Maruyama sampler using the correct reverse-time SDE.
@@ -40,6 +41,11 @@ def Euler_Maruyama_sampler(
     step_size = time_steps[0] - time_steps[1]
     x = init_x
 
+    do_cfg = (guidance_scale != 1.0) and (y is not None)
+    if y is None and do_cfg:
+        print("Warning: Guidance scale != 1.0 but no labels 'y' provided. Falling back to uncond.")
+        do_cfg = False
+
     for i, t in enumerate(tqdm(time_steps, desc="Sampling")):
         step_key = jax.random.fold_in(rng, i)
         vec_t = jnp.ones(batch_size) * t
@@ -47,6 +53,21 @@ def Euler_Maruyama_sampler(
         std = marginal_prob_std_fn(vec_t)
         assert jnp.all(jnp.isfinite(g))
         predicted_noise = ldm_model.apply({'params': ldm_params}, x, vec_t)
+
+        if do_cfg:
+            # Conditional pass
+            noise_cond = ldm_model.apply({'params': ldm_params}, x, vec_t, y=y)
+
+            # Unconditional pass (label = num_classes)
+            y_null = jnp.ones_like(y) * num_classes
+            noise_uncond = ldm_model.apply({'params': ldm_params}, x, vec_t, y=y_null)
+
+            # CFG Formula: eps_hat = eps_uncond + scale * (eps_cond - eps_uncond)
+            predicted_noise = noise_uncond + guidance_scale * (noise_cond - noise_uncond)
+        else:
+            # Standard pass (conditional if y is provided, else unconditional)
+            predicted_noise = ldm_model.apply({'params': ldm_params}, x, vec_t, y=y)
+
         beta_vec = (g ** 2)[:, None, None, None]
         score = -predicted_noise / (std[:, None, None, None] + 1e-8)
         drift = -0.5 * beta_vec * x - beta_vec * score
