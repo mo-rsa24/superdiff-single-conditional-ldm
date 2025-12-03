@@ -461,43 +461,49 @@ def main():
             unrep_ae_params = jax.device_get(jax.tree_util.tree_map(lambda x: x[0], ae_params))
 
             # Construct conditional labels: e.g., first half class 0, second half class 1
-            bs = args.sample_batch_size
-            y_sample = np.zeros((bs,), dtype=np.int32)
-            half = bs // 2
-            y_sample[half:] = 1  # Set second half to TB (if class 1 is TB)
-            y_sample = jnp.array(y_sample)
+            class_names = {0: "Normal", 1: "TB"}  # Map your labels
 
-            samples_grid, final_latent = Euler_Maruyama_sampler(
-                rng=sample_rng,
-                ldm_model=ldm_model,
-                ldm_params=unrep_ldm_params,
-                ae_model=ae_model,
-                ae_params=unrep_ae_params,
-                marginal_prob_std_fn=marginal_prob_std_fn,
-                diffusion_coeff_fn=diffusion_coeff_fn,
-                latent_size=latent_size,
-                batch_size=bs,
-                z_channels=z_channels,
-                z_std=args.latent_scale_factor,
-                y=y_sample,
-                guidance_scale=args.guidance_scale,
-                num_classes=args.num_classes
-            )
-            final_latent_np = np.asarray(final_latent)
-            log_sample_diversity(final_latent_np, step=global_step, epoch=ep + 1)
-            stats = {
-                "mean": np.mean(final_latent_np),
-                "std": np.std(final_latent_np),
-                "min": np.min(final_latent_np),
-                "max": np.max(final_latent_np),
-            }
-            pretty_table("final_latent_stats", stats)
-            out_path = os.path.join(samples_dir, f"sample_ep{ep + 1:04d}.png")
-            save_image(samples_grid, out_path)
-            close_block("sample", step=global_step)
-            if use_wandb:
-                wandb.log({"samples": wandb.Image(out_path), "epoch": ep + 1})
+            for class_idx in range(args.num_classes):
+                # Create a batch of purely this class
+                bs = args.sample_batch_size
+                y_sample = jnp.full((bs,), class_idx, dtype=jnp.int32)
 
+                # Split RNG for this specific sampling run
+                sample_rng, step_rng = jax.random.split(sample_rng)
+
+                samples_grid, final_latent = Euler_Maruyama_sampler(
+                    rng=step_rng,
+                    ldm_model=ldm_model,
+                    ldm_params=unrep_ldm_params,
+                    ae_model=ae_model,
+                    ae_params=unrep_ae_params,
+                    marginal_prob_std_fn=marginal_prob_std_fn,
+                    diffusion_coeff_fn=diffusion_coeff_fn,
+                    latent_size=latent_size,
+                    batch_size=bs,
+                    z_channels=z_channels,
+                    z_std=args.latent_scale_factor,
+                    y=y_sample,
+                    guidance_scale=args.guidance_scale,
+                    num_classes=args.num_classes
+                )
+                final_latent_np = np.asarray(final_latent)
+                log_sample_diversity(final_latent_np, step=global_step, epoch=ep + 1)
+                stats = {
+                    "mean": np.mean(final_latent_np),
+                    "std": np.std(final_latent_np),
+                    "min": np.min(final_latent_np),
+                    "max": np.max(final_latent_np),
+                }
+                pretty_table("final_latent_stats", stats)
+                class_name_str = class_names.get(class_idx, f"Class_{class_idx}")
+                out_path = os.path.join(samples_dir, f"sample_ep{ep + 1:04d}_{class_name_str}.png")
+                save_image(samples_grid, out_path)
+                if use_wandb:
+                    wandb.log({f"samples/{class_name_str}": wandb.Image(out_path,
+                                                                        caption=f"Epoch {ep + 1} - {class_name_str}"),
+                               "epoch": ep + 1})
+        close_block("sample", step=global_step)
         # Save checkpoint
         unrep_state = jax.device_get(jax.tree_util.tree_map(lambda x: x[0], ldm_state))
         with tf.io.gfile.GFile(ckpt_latest, "wb") as f:
