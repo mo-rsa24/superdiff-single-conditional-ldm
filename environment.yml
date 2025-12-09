@@ -1,0 +1,20 @@
+name: jaxstack
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.11
+  - pip
+
+  # (optional but nice) core scientific stack via conda
+  - numpy=1.26
+  - scipy=1.14
+  - pandas=2.3
+  - scikit-learn=1.7
+  - matplotlib=3.9
+  - ipykernel
+  - jupyterlab
+
+  # everything else, including jax/jaxlib, via pip
+  - pip:
+      - -r requirements-clean.txt
