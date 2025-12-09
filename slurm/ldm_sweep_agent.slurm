@@ -11,12 +11,8 @@ PARTITION_NAME=$2
 #SBATCH --output=slurm_logs/%x-%j.out
 #SBATCH --error=slurm_logs/%x-%j.err
 #SBATCH --partition=${PARTITION_NAME} # bigbatch, stampede, biggpu
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --gpus-per-task=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
-#SBATCH --time=48:00:00
+#SBATCH --exclude=mscluster65,mscluster76,mscluster59
+#SBATCH --time=72:00:00
 
 # W&B Agent Settings
 WANDB_PROJECT="cxr-ldm"

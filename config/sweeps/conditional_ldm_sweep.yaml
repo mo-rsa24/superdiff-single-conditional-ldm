@@ -1,0 +1,40 @@
+# conditional_ldm_sweep.yaml
+# Defines the grouped sweeps for the Conditional LDM
+
+program: train_ldm.py  # The main Python script to run
+method: grid           # Use grid search for precise control over discrete values
+metric:
+  name: sample_diversity/pairwise_mse_mean # Maximize diversity to combat mode collapse
+  goal: maximize
+
+parameters:
+  # 1. Training Mode Grouping: Test overfit-8, overfit-16, and full-train (overfit_k=0)
+  # This parameter is used by the sweep_agent_launcher.sh to set arguments.
+  overfit_k:
+    values: [0, 8, 16]
+
+  # 2. Key Stability Hyperparameters (Based on 'Safe & Stable' guide)
+  lr:
+    values: [3.0e-5, 5.0e-5]      # Test the two most stable learning rates
+  ldm_base_ch:
+    values: [96, 128]             # Test the stable and higher capacity model sizes
+
+  # 3. Conditional Parameters (Testing the impact of label dropping)
+  prob_uncond:
+    values: [0.1, 0.2]            # Label dropout for Classifier-Free Guidance (CFG)
+  guidance_scale:
+    values: [3.0, 5.0]            # CFG scale for sampling
+
+# --- Fixed Arguments (Passed to train_ldm.slurm via environment) ---
+command:
+  - python
+  - ${program}
+  - ${args}
+  - --wandb
+  - --task "All_CXR"              # Overrides the default 'TB' in config_utils.py
+  - --class_filter -1             # CRITICAL: Ensures all classes (TB, Normal) are included
+  - --data_root "/datasets/mmolefe/cleaned" # Confirmed path
+  - --ae_ckpt_path "runs/unified-ae-128-z4_z4_20251008-161725/20251008-170121/ckpts/last.flax"
+  - --ae_config_path "runs/unified-ae-128-z4_z4_20251008-161725/20251008-170121/run_meta.json"
+  - --latent_scale_factor 0.994534
+  - --epochs 1000                 # Set a higher epoch count for sweeps
