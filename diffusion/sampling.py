@@ -1,100 +1,125 @@
-import numpy as np
-from jax import *
+# diffusion/sampling.py
 import jax
 import jax.numpy as jnp
-from tqdm import tqdm
-import torch
+import numpy as np
 from torchvision.utils import make_grid
-
-from diffusion.vp_equation import beta
-
-
-def _sum_except_batch(x):
-    axes = tuple(range(1, x.ndim))
-    return jnp.sum(x, axis=axes, keepdims=True)
+from typing import Any, Tuple, Callable
+from models.ae_kl import AutoencoderKL
+from models.ldm_unet import ScoreNet  # Renamed from cxr_unet
 
 
-def _broadcast_time(t_scalar, x):
-    """Make t broadcast like x: (N,1[,1,1...])"""
-    N = x.shape[0]
-    extra_ones = (1,) * (x.ndim - 1)
-    return jnp.ones((N,) + extra_ones, dtype=x.dtype) * t_scalar
-
+# --- Sampling Function ---
 
 def Euler_Maruyama_sampler(
-    rng, ldm_model, ldm_params, ae_model, ae_params,
-    marginal_prob_std_fn, diffusion_coeff_fn,
-    latent_size, batch_size, z_channels, z_std=1.0,
-    n_steps=700, eps=1e-3,  # Use eps=1e-3 for stability with this SDE
-    y=None, guidance_scale=1.0, num_classes=2
-):
+        rng: jax.random.PRNGKey,
+        ldm_model: ScoreNet,
+        ldm_params: Any,
+        ae_model: AutoencoderKL,
+        ae_params: Any,
+        marginal_prob_std_fn: Callable,
+        diffusion_coeff_fn: Callable,
+        latent_size: int,
+        batch_size: int,
+        z_channels: int,
+        z_std: float,
+        y: jnp.ndarray,  # Class labels for conditioning
+        guidance_scale: float,  # CFG scale
+        num_classes: int,
+        num_steps: int = 500,
+) -> Tuple[Any, jnp.ndarray]:
     """
-    Corrected Euler-Maruyama sampler using the correct reverse-time SDE.
+    Implements the Euler-Maruyama sampler with Classifier-Free Guidance (CFG).
+
+    Returns: (Samples grid (PyTorch Tensor), Final latent (JAX array))
     """
-    print("Running CORRECTED Euler-Maruyama sampler with stable equations...")
-    rngs = jax.random.split(rng, batch_size)
-    single_sample_shape = (latent_size, latent_size, z_channels)
-    init_x = jax.vmap(lambda key: jax.random.normal(key, single_sample_shape))(rngs)
-    init_x = init_x * marginal_prob_std_fn(jnp.ones(batch_size))[:, None, None, None]
 
-    time_steps = jnp.linspace(1., eps, n_steps)
-    step_size = time_steps[0] - time_steps[1]
-    x = init_x
+    # 1. Initialization
+    eps_init, rng = jax.random.split(rng)
 
-    do_cfg = (guidance_scale != 1.0) and (y is not None)
-    if y is None and do_cfg:
-        print("Warning: Guidance scale != 1.0 but no labels 'y' provided. Falling back to uncond.")
-        do_cfg = False
+    # Start at T=1 with pure noise (z_std determines the magnitude of this initial noise)
+    z = jax.random.normal(eps_init, (batch_size, latent_size, latent_size, z_channels)) * z_std
 
-    for i, t in enumerate(tqdm(time_steps, desc="Sampling")):
-        step_key = jax.random.fold_in(rng, i)
-        vec_t = jnp.ones(batch_size) * t
-        g = diffusion_coeff_fn(vec_t)
-        std = marginal_prob_std_fn(vec_t)
-        assert jnp.all(jnp.isfinite(g))
-        predicted_noise = ldm_model.apply({'params': ldm_params}, x, vec_t)
+    # Set time steps
+    ts = jnp.linspace(1.0, 1e-5, num_steps)
+    dt = ts[0] - ts[1]
 
-        if do_cfg:
-            # Conditional pass
-            noise_cond = ldm_model.apply({'params': ldm_params}, x, vec_t, y=y)
+    # 2. CFG Setup: create unconditional label (index = num_classes)
+    y_uncond = jnp.full_like(y, num_classes, dtype=jnp.int32)
 
-            # Unconditional pass (label = num_classes)
-            y_null = jnp.ones_like(y) * num_classes
-            noise_uncond = ldm_model.apply({'params': ldm_params}, x, vec_t, y=y_null)
+    def loop_body(i, state):
+        rng, z = state
+        t = ts[i]
+        t_batch = jnp.full((batch_size,), t)
 
-            # CFG Formula: eps_hat = eps_uncond + scale * (eps_cond - eps_uncond)
-            predicted_noise = noise_uncond + guidance_scale * (noise_cond - noise_uncond)
-        else:
-            # Standard pass (conditional if y is provided, else unconditional)
-            predicted_noise = ldm_model.apply({'params': ldm_params}, x, vec_t, y=y)
+        # 2a. Predict noise for conditional and unconditional paths
+        # This requires two forward passes in the UNet.
 
-        beta_vec = (g ** 2)[:, None, None, None]
-        score = -predicted_noise / (std[:, None, None, None] + 1e-8)
-        drift = -0.5 * beta_vec * x - beta_vec * score
+        # Conditional prediction: epsilon_theta(z_t, t, y)
+        eps_cond = ldm_model.apply({'params': ldm_params}, z, t_batch, y=y)
 
-        # drift = -0.5 * beta(vec_t)[:, None, None, None] * x - (g**2)[:, None, None, None] * score
+        # Unconditional prediction: epsilon_theta(z_t, t, null)
+        eps_uncond = ldm_model.apply({'params': ldm_params}, z, t_batch, y=y_uncond)
 
-        diffusion = g[:, None, None, None] * jax.random.normal(step_key, x.shape)
-        x_mean = x - drift * step_size
-        x = x_mean + diffusion * jnp.sqrt(step_size)
-    final_z_for_decode = x # The sampler already produces a latent at the correct scale
-    z_for_decode = final_z_for_decode * z_std
-    x_hat = ae_model.apply({'params': ae_params}, z_for_decode, method=ae_model.decode, train=False)
-    x_hat = jnp.clip(x_hat, 0., 1.)
-    x_hat = jnp.transpose(x_hat, (0, 3, 1, 2)) # NHWC -> NCHW
-    x_hat_t = torch.from_numpy(np.asarray(x_hat))
+        # 2b. Compute CFG-blended noise estimate (epsilon_hat)
+        # eps_hat = eps_uncond + guidance_scale * (eps_cond - eps_uncond)
+        eps_hat = eps_uncond + guidance_scale * (eps_cond - eps_uncond)
 
-    grid = make_grid(x_hat_t, nrow=int(jnp.sqrt(batch_size)))
-    return grid, x
+        # 2c. Compute SDE components
+        std = marginal_prob_std_fn(t)
+        sigma = std * z_std  # Scale the noise magnitude by z_std
+        g = diffusion_coeff_fn(t)
 
-signal_to_noise_ratio = 0.16  # @param {'type':'number'}
+        # 2d. Euler-Maruyama Step: z_{t-dt} = z_t + f(z_t, t) dt + g(t) dw
 
-## The number of sampling steps.
-num_steps = 500  # @param {'type':'integer'}
+        # Drift term: f(z_t, t) = -0.5 * beta(t) * z_t - beta(t) * sigma(t)^2 * score(z_t, t)
+        # where score(z_t, t) = -eps_hat / sigma(t)
+        # Simplification: f(z_t, t) * dt = 0.5 * beta(t) * (z_t - (z_t + eps_hat * (sigma^2 / std))) dt
 
+        # Simplest form (Noise Prediction Model):
+        # z_{t-1} = z_t + (-1/2 * beta * z_t - beta * score(z_t, t)) * dt + sqrt(beta) dw
+        # For simplicity and robustness, we use the standard SDE form and approximate the score.
 
-def select_sampler(name: str):
-    name = name.lower()
-    if name in ("em", "euler", "euler-maruyama"):
-        return Euler_Maruyama_sampler
-    raise ValueError(f"Unknown sampler: {name}")
+        # Simplified Euler-Maruyama update for noise prediction:
+        drift = -0.5 * (diffusion_coeff_fn(t) ** 2) * (z / (sigma ** 2))
+
+        # Use the epsilon prediction approximation for the score function: score = -eps_hat / sigma
+        drift = drift - (diffusion_coeff_fn(t) ** 2) * (-eps_hat / sigma)
+
+        # Use the simplified Denoising Diffusion Implicit Model (DDIM) update for speed and stability
+        # The equation above often simplifies to:
+        a_t = marginal_prob_std_fn(t)
+        a_t_minus_dt = marginal_std = marginal_prob_std_fn(t - dt)
+
+        # DDIM update approximation: z_t-dt = prediction_of_x0 + sqrt(1 - a_t-dt^2) * new_noise
+        # where prediction_of_x0 = (z - a_t * eps_hat) / (alpha_fn(t))
+
+        # Use the original SDE-based sampling for better fidelity:
+        # Compute the step using the score/noise prediction
+        step_size = jnp.abs(dt)
+        drift = -0.5 * get_beta(t) * z - get_beta(t) * (sigma ** 2) * (-eps_hat / sigma)
+
+        # Stochastic term: g(t) * dw
+        rng, step_rng = jax.random.split(rng)
+        dw = jnp.sqrt(step_size) * jax.random.normal(step_rng, z.shape)
+
+        # Next step
+        z_next = z + drift * step_size + diffusion_coeff_fn(t) * dw
+
+        return rng, z_next
+
+    # 3. JAX Loop
+    rng, final_z = jax.lax.fori_loop(0, num_steps, loop_body, (rng, z))
+
+    # 4. Decode
+    # The latent space z is scaled by z_std (or latent_scale_factor in LDM paper). 
+    # We unscale it before passing to the AE decoder, which expects the original scale.
+    z_unscaled = final_z / z_std
+    x_rec = ae_model.apply({'params': ae_params}, z_unscaled, method=ae_model.decode, train=False)
+
+    # 5. Post-process (NHWC to NCHW, JAX to Numpy, [0,1] to [-1,1] for `save_image`)
+    x_rec_np = np.asarray(x_rec)
+    x_rec_np = (x_rec_np * 2.0) - 1.0  # Convert [0,1] back to [-1,1] for save_image
+    x_rec_np = np.transpose(x_rec_np, (0, 3, 1, 2))  # NHWC -> NCHW
+    x_rec_tensor = make_grid(jnp.asarray(x_rec_np), nrow=4, padding=2, normalize=True, range=(-1, 1))
+
+    return x_rec_tensor, final_z

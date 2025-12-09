@@ -1,0 +1,47 @@
+import argparse
+
+def parse_args():
+    p = argparse.ArgumentParser("JAX Conditional Latent Diffusion Model (CXR) Trainer")
+    # --- Data & Debugging ---
+    p.add_argument("--data_root", default="../datasets/cleaned")
+    p.add_argument("--task", choices=["TB","PNEUMONIA", "All_CXR"], default="TB")
+    p.add_argument("--split", choices=["train", "val", "test"], default="train")
+    p.add_argument("--img_size", type=int, default=256)
+    p.add_argument("--class_filter", type=int, default=-1, help="Filter to a single class index (-1 for all).")
+    p.add_argument("--num_classes", type=int, default=2, help="Number of classes (e.g. 2 for TB/Normal)")
+    p.add_argument("--overfit_one", action="store_true", help="Repeat a single sample to overfit.")
+    p.add_argument("--overfit_k", type=int, default=0, help="If >0, train on a fixed tiny subset of size K.")
+    p.add_argument("--repeat_len", type=int, default=500, help="Virtual length for overfit_one dataset.")
+    p.add_argument("--prob_uncond", type=float, default=0.1, help="Probability of dropping the label for CFG training.")
+    # --- Pretrained Autoencoder ---
+    p.add_argument("--ae_ckpt_path", required=True, help="Path to the last.flax of the pretrained autoencoder.")
+    p.add_argument("--ae_config_path", required=True, help="Path to the run_meta.json of the AE run.")
+    p.add_argument("--latent_scale_factor", type=float, default=1.0, help="VAE latent scaling factor.")
+    # --- LDM UNet Architecture ---
+    p.add_argument("--ldm_ch_mults", type=str, default="1,2,4", help="Channel multipliers for UNet, relative to base_ch.")
+    p.add_argument("--ldm_base_ch", type=int, default=128)
+    p.add_argument("--ldm_num_res_blocks", type=int, default=2)
+    p.add_argument("--ldm_attn_res", type=str, default="16", help="Resolutions for attention blocks, e.g., '16,8'")
+    # --- Optimizer ---
+    p.add_argument("--lr", type=float, default=1e-5)
+    p.add_argument("--weight_decay", type=float, default=1e-4)
+    p.add_argument("--grad_clip", type=float, default=1.0)
+    p.add_argument("--epochs", type=int, default=500)
+    p.add_argument("--batch_per_device", type=int, default=4)
+    p.add_argument("--seed", type=int, default=42)
+    # --- Logging & Checkpoints ---
+    p.add_argument("--output_root", default="runs_ldm")
+    p.add_argument("--exp_name", default="cxr_ldm")
+    p.add_argument("--run_name", default=None)
+    p.add_argument("--resume_dir", default=None)
+    p.add_argument("--log_every", type=int, default=100)
+    p.add_argument("--sample_every", type=int, default=5)
+    p.add_argument("--sample_batch_size", type=int, default=16)
+    p.add_argument("--guidance_scale", type=float, default=4.0, help="Classifier-Free Guidance scale for sampling.")
+    p.add_argument("--num_sampling_steps", type=int, default=500, help="Number of SDE steps for Euler-Maruyama sampler.")
+    p.add_argument("--use_ema", action="store_true", help="Enable EMA for model parameters.")
+    p.add_argument("--ema_decay", type=float, default=0.999, help="Decay rate for EMA.")
+    p.add_argument("--wandb", action="store_true", help="Enable logging to Weights & Biases")
+    p.add_argument("--wandb_project", default="cxr-ldm")
+    p.add_argument("--wandb_tags", default="")
+    return p.parse_args()
