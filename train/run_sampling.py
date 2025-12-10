@@ -43,13 +43,16 @@ def run_sampling_and_checkpoint(
     logger.open_block("sample", step=global_step, epoch=ep + 1)
 
     # --- 1. Select Parameters for Inference ---
-    # Use EMA params for inference if enabled, otherwise use the current trained params
-    if args.use_ema:
-        unrep_ldm_params = jax.device_get(ldm_state.ema_params)[0]
+    # Unreplicate params for inference (always unrep the base params first)
+    unrep_ldm_params = jax.device_get(jax.tree_util.tree_map(lambda x: x[0], ldm_state.params))
+
+    # Determine whether to use EMA or standard trained parameters
+    if args.use_ema and ldm_state.ema_params is not None:
         print("[sampling] Using EMA parameters.")
+        sampling_params = jax.device_get(jax.tree_util.tree_map(lambda x: x[0], ldm_state.ema_params))
     else:
-        unrep_ldm_params = jax.device_get(jax.tree_util.tree_map(lambda x: x[0], ldm_state.params))
         print("[sampling] Using trained parameters.")
+        sampling_params = unrep_ldm_params
 
     # Get unreplicated AE params
     unrep_ae_params = jax.device_get(jax.tree_util.tree_map(lambda x: x[0], ae_params))
@@ -69,7 +72,7 @@ def run_sampling_and_checkpoint(
         samples_grid, final_latent = Euler_Maruyama_sampler(
             rng=step_rng,
             ldm_model=ldm_model,
-            ldm_params=unrep_ldm_params,
+            ldm_params=sampling_params,
             ae_model=ae_model,
             ae_params=unrep_ae_params,
             marginal_prob_std_fn=marginal_prob_std_fn,

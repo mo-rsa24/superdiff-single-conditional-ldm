@@ -13,20 +13,7 @@ import argparse
 from models.ae_kl import AutoencoderKL
 from models.ldm_unet import ScoreNet
 
-# VAE checkpoint deserialization requires these objects
-try:
-    from losses.lpips_gan import LPIPSWithDiscriminatorJAX, LPIPSGANConfig
-except ImportError:
-    # Dummy classes for deserialization if loss module is not present in environment
-    class LPIPSGANConfig:
-        def __init__(self, **kwargs): pass
-
-
-    class LPIPSWithDiscriminatorJAX:
-        def __init__(self, cfg, **kwargs): pass
-
-        def init(self, rng, x_in, x_rec, posterior, step): return {'params': {}}
-
+from losses.lpips_gan import LPIPSWithDiscriminatorJAX, LPIPSGANConfig
 
 # --- Train State with EMA ---
 class TrainStateWithEMA(TrainState):
@@ -74,7 +61,7 @@ def load_autoencoder(config_path: str, ckpt_path: str) -> Tuple[AutoencoderKL, A
     gen_params = {'ae': ae_variables['params']}
     loss_cfg = LPIPSGANConfig(disc_num_layers=ae_args.get('disc_layers', 3))
     loss_mod = LPIPSWithDiscriminatorJAX(loss_cfg)
-    loss_params_dummy = loss_mod.init(rng, fake_img, fake_img, None, jnp.array(0))['params']
+    loss_params_dummy = loss_mod.init(rng, x_in=fake_img, x_rec=fake_img, posterior=None, step=jnp.array(0))['params']
     disc_params_dummy = {'loss': loss_params_dummy}
 
     dummy_gen_state = TrainState.create(apply_fn=None, params=gen_params, tx=tx)

@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
+import torch
 from torchvision.utils import make_grid
 from typing import Any, Tuple, Callable
 from diffusion.sde_vp import get_beta
@@ -51,5 +52,11 @@ def Euler_Maruyama_sampler(
     x_rec_np = np.asarray(x_rec)
     x_rec_np = (x_rec_np * 2.0) - 1.0  # Convert [0,1] back to [-1,1] for save_image
     x_rec_np = np.transpose(x_rec_np, (0, 3, 1, 2))  # NHWC -> NCHW
-    x_rec_tensor = make_grid(jnp.asarray(x_rec_np), nrow=4, padding=2, normalize=True, range=(-1, 1))
+    x_rec_tensor = make_grid(
+        torch.from_numpy(x_rec_np),
+        nrow=4,
+        padding=2,
+        normalize=True,
+        value_range=(-1, 1)
+    )
     return x_rec_tensor, final_z
