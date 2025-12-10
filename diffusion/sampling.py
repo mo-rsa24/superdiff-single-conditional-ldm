@@ -37,7 +37,7 @@ def Ancestral_Sampler(
     def loop_body(i, state):
         rng, z = state
         t = ts[i]
-        s = jnp.where(i == num_steps - 1, 0.0, ts[min(i + 1, num_steps - 1)])
+        s = jnp.where(i == num_steps - 1, 0.0, ts[jnp.minimum(i + 1, num_steps - 1)])
         t_batch = jnp.full((batch_size,), t)
         eps_cond = ldm_model.apply({'params': ldm_params}, z, t_batch, y=y)
         eps_uncond = ldm_model.apply({'params': ldm_params}, z, t_batch, y=y_uncond)
