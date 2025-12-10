@@ -54,13 +54,14 @@ while [[ $# -gt 0 ]]; do
     --partition)           export SLURM_PARTITION="$2"; shift 2 ;;
     --job-name)            export SLURM_JOB_NAME="$2"; shift 2 ;;
     --lr)                  export LR="$2"; shift 2 ;;
-    --weight_decay)        export LR="$2"; shift 2 ;; # Note: If you want to override WD
+    --weight_decay)        export WEIGHT_DECAY="$2"; shift 2 ;;
     --ldm_base_ch)         export LDM_BASE_CH="$2"; shift 2 ;;
     --prob_uncond)         export PROB_UNCOND="$2"; shift 2 ;;
     --guidance_scale)      export GUIDANCE_SCALE="$2"; shift 2 ;;
     --latent_scale_factor) export LATENT_SCALE_FACTOR="$2"; shift 2 ;;
     --epochs)              export EPOCHS="$2"; shift 2 ;;
     --log_every)           export LOG_EVERY="$2"; shift 2 ;;
+    --sample_every)        export SAMPLE_EVERY="$2"; shift 2 ;;
     --num_sampling_steps)  export NUM_SAMPLING_STEPS="$2"; shift 2 ;;
     *)                     OTHER_ARGS+=("$1"); shift ;; # Save unrecognized arg
   esac

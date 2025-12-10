@@ -97,7 +97,7 @@ def run_sampling_and_checkpoint(
 
         if wandb_run:
             wandb_run.log({
-                f"samples/{class_name_str}": wandb_run.Image(out_path, caption=f"Epoch {ep + 1} - {class_name_str}"),
+                f"samples/{class_name_str}": wandb.Image(out_path, caption=f"Epoch {ep + 1} - {class_name_str}"),
                 "epoch": ep + 1,
                 "step": global_step
             })
