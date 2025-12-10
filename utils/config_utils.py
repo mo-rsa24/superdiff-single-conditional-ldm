@@ -35,7 +35,7 @@ def parse_args():
     p.add_argument("--run_name", default=None)
     p.add_argument("--resume_dir", default=None)
     p.add_argument("--log_every", type=int, default=100)
-    p.add_argument("--sample_every", type=int, default=5)
+    p.add_argument("--sample_every", type=int, default=100)
     p.add_argument("--sample_batch_size", type=int, default=16)
     p.add_argument("--guidance_scale", type=float, default=4.0, help="Classifier-Free Guidance scale for sampling.")
     p.add_argument("--num_sampling_steps", type=int, default=500, help="Number of SDE steps for Euler-Maruyama sampler.")
