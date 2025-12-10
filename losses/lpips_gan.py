@@ -1,8 +1,8 @@
-from typing import Optional, Dict, Tuple
+from typing import Optional
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 class NLayerDiscriminator(nn.Module):
@@ -71,7 +71,7 @@ class LPIPSGANConfig:
 
 class LPIPSWithDiscriminatorJAX(nn.Module):
     cfg: LPIPSGANConfig
-    perc: PerceptualHook = PerceptualHook()  # defaults to zero
+    perc: PerceptualHook = field(default_factory=PerceptualHook)
 
     def setup(self):
         self.logvar = self.param("logvar", lambda k: jnp.array(0.0))

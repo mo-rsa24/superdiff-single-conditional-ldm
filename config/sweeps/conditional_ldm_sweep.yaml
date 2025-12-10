@@ -41,10 +41,10 @@ command:
   - ${program}
   - ${args}
   - --wandb
-  - --task "All_CXR"              # Overrides the default 'TB' in config_utils.py
+  - --task "ALL_CXR"              # Overrides the default 'TB' in config_utils.py
   - --class_filter -1             # CRITICAL: Ensures all classes (TB, Normal) are included
   - --data_root "/datasets/mmolefe/cleaned" # Confirmed path
   - --ae_ckpt_path "runs/unified-ae-128-z4_z4_20251008-161725/20251008-170121/ckpts/last.flax"
   - --ae_config_path "runs/unified-ae-128-z4_z4_20251008-161725/20251008-170121/run_meta.json"
-  - --latent_scale_factor 0.994534
+  - --latent_scale_factor 0.997570
   - --epochs 1000                 # Set a higher epoch count for sweeps

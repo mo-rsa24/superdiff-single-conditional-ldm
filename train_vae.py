@@ -53,7 +53,7 @@ def parse_args():
 
     # Data
     p.add_argument("--data_root", default="../datasets/cleaned")
-    p.add_argument("--task", choices=["TB","PNEUMONIA", "All_CXR"], default="TB")
+    p.add_argument("--task", choices=["TB","PNEUMONIA", "ALL_CXR"], default="TB")
     p.add_argument("--split", choices=["train","val","test"], default="train")
     p.add_argument("--img_size", type=int, default=256)
     p.add_argument("--class_filter", type=int_or_none, default=None, help="Train only on one class (e.g., 0 or 1), or 'None' for no filter")

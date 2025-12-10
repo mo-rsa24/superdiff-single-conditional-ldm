@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # --- 1. CORE DEFAULTS (Conditional Training) ---
-export TASK="All_CXR" # Dataset name reflecting combined data
+export TASK="ALL_CXR" # Dataset name reflecting combined data
 export ENV_NAME="jax115"
 export IMG_SIZE="128"
 export TRAINING_MODE="${1:-full_train}" # Reads mode (e.g., full_train) from the first argument
@@ -37,7 +37,7 @@ export EMA_DECAY="0.999"
 # --- 4. SHARED VAE AND SCALE FACTOR (MUST BE UPDATED) ---
 export AE_CKPT_PATH="runs/unified-ae-128-z4_z4_20251008-161725/20251008-170121/ckpts/last.flax"
 export AE_CONFIG_PATH="runs/unified-ae-128-z4_z4_20251008-161725/20251008-170121/run_meta.json"
-export LATENT_SCALE_FACTOR="0.994534"
+export LATENT_SCALE_FACTOR="0.997570"
 
 # --- 5. SLURM DEFAULTS (Override via command line) ---
 export SLURM_PARTITION="bigbatch"
@@ -66,7 +66,7 @@ done
 
 # --- 7. Run Naming & W&B Configuration (Uses final values) ---
 export RUN_NAME="${SLURM_JOB_NAME}_lr${LR}_ch${LDM_BASE_CH}_$(date +%Y%m%d-%H%M%S)"
-export WANDB_PROJECT="conditional-ldm-composition"
+export WANDB_PROJECT="cxr-conditional-ldm"
 export WANDB_TAGS="ldm,${TASK,,},conditional"
 
 # --- 8. Prettier Submit Message ---

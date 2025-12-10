@@ -14,9 +14,8 @@ PARTITION_NAME=$2
 #SBATCH --exclude=mscluster65,mscluster76,mscluster59
 #SBATCH --time=72:00:00
 
-# W&B Agent Settings
-WANDB_PROJECT="cxr-ldm"
-WANDB_ENTITY="your_wandb_entity" # Replace with your W&B entity
+WANDB_PROJECT="cxr-conditional-ldm"
+WANDB_ENTITY="prime_lab" # Replace with your W&B entity
 
 # --- Environment Setup ---
 # Check if arguments were passed

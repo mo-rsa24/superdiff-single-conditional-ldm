@@ -53,7 +53,7 @@ SEED="${SEED:-42}"
 
 # Experiment naming / output
 OUTPUT_ROOT="${OUTPUT_ROOT:-runs_ldm}"
-EXP_NAME="${EXP_NAME:-cxr_ldm}"
+EXP_NAME="${EXP_NAME:-cxr_conditional_ldm}"
 RUN_NAME="${RUN_NAME:-}"
 RESUME_DIR="${RESUME_DIR:-}"
 

@@ -7,7 +7,7 @@ set -euo pipefail
 # --- Fixed Defaults ---
 export ENV_NAME="jax115"
 # Set TASK and DISEASE to ensure conditional training is used
-export TASK="All_CXR"
+export TASK="ALL_CXR"
 export DISEASE="-1"
 export PYFILE="train_ldm.py" # Assuming train_ldm.py is the executable
 
@@ -45,7 +45,7 @@ TAGS="sweep,ldm,conditional,${TRAINING_MODE}"
 [[ -n "${LR:-}" ]] && TAGS+=",lr${LR}"
 
 export WANDB_TAGS="$TAGS"
-export WANDB_PROJECT="conditional-ldm-composition" # Matches your desired project
+export WANDB_PROJECT="cxr-conditional-ldm" # Matches your desired project
 export RUN_NAME="sweep-${TRAINING_MODE}-${LDM_BASE_CH:-0}-lr${LR:-0}_$(date +%s)"
 
 # --- Submit Job to SLURM ---

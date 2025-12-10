@@ -4,7 +4,7 @@ def parse_args():
     p = argparse.ArgumentParser("JAX Conditional Latent Diffusion Model (CXR) Trainer")
     # --- Data & Debugging ---
     p.add_argument("--data_root", default="../datasets/cleaned")
-    p.add_argument("--task", choices=["TB","PNEUMONIA", "All_CXR"], default="TB")
+    p.add_argument("--task", choices=["TB","PNEUMONIA", "ALL_CXR"], default="TB")
     p.add_argument("--split", choices=["train", "val", "test"], default="train")
     p.add_argument("--img_size", type=int, default=256)
     p.add_argument("--class_filter", type=int, default=-1, help="Filter to a single class index (-1 for all).")
