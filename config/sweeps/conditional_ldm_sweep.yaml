@@ -5,11 +5,6 @@ metric:
   goal: maximize
 
 parameters:
-  # 1. Training Mode Grouping: Test overfit-8, overfit-16, and full-train (overfit_k=0)
-  # This parameter is used by the sweep_agent_launcher.sh to set arguments.
-  overfit_k:
-    values: [0, 8, 16]
-
   # 2. Key Stability Hyperparameters (Based on 'Safe & Stable' guide)
   lr:
     values: [3.0e-5, 5.0e-5]      # Test the two most stable learning rates

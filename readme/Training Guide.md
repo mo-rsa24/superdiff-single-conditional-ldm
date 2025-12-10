@@ -187,7 +187,36 @@ This tests generalization on a very small subset of $K=8$ samples, requiring mor
   --num_sampling_steps 500 \
   --partition bigbatch
 ```
+#### Targeted Sweeps 
 
+To run focused stability sweeps on the `stampede|bigbatch|biggpu` partition, ensure your YAML config has the correct `overfit_k` value (e.g., `[16]` or `[32]`) and launch the agent on `stampede`.
+
+**Group 1: Overfit 16**
+
+  * **Config:** Set `overfit_k: 16` below by simply specifying the number.
+  * **Command:**
+    ```bash
+    # Initialize
+    wandb sweep config/sweeps/conditional_ldm_sweep.yaml --project cxr-conditional-ldm 
+    # Returns: <SWEEP_ID>
+    
+    # Launch on Stampede
+    sbatch slurm/ldm_sweep_agent.slurm <SWEEP_ID> stampede 16
+    ```
+
+**Group 2: Overfit 32**
+
+  * **Config:** Set `overfit_k: 32` below by simply specifying the number.
+  * **Command:**
+    ```bash
+    # Initialize
+    wandb sweep config/sweeps/conditional_ldm_sweep.yaml --project cxr-conditional-ldm 
+    # Returns: <SWEEP_ID>
+    
+    # Launch on Stampede
+    sbatch slurm/ldm_sweep_agent.slurm <SWEEP_ID> stampede 32
+    ```
+    
 ### 5.3 Full Train (Entire Dataset)
 
 This is the standard training run on the entire conditional dataset.
@@ -210,6 +239,18 @@ This is the standard training run on the entire conditional dataset.
   --partition bigbatch
 ```
 
+**Group 2: Overfit 32**
+
+  * **Config:** Set `overfit_k: 0` below by simply specifying the number.
+  * **Command:**
+    ```bash
+    # Initialize
+    wandb sweep config/sweeps/conditional_ldm_sweep.yaml --project cxr-conditional-ldm 
+    # Returns: <SWEEP_ID>
+    
+    # Launch on Stampede
+    sbatch slurm/ldm_sweep_agent.slurm <SWEEP_ID> stampede 0
+    ```
 
 ## Appendix: Interpreting LDM Training Metrics
 
