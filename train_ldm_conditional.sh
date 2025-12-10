@@ -95,9 +95,9 @@ rule
 
 # --- 9. Submit to SLURM ---
 # The train_ldm.slurm script expects these env vars to be set and will pass them as arguments.
-# Assuming your 'train_ldm.slurm' file is accessible as 'slurm_scripts/cxr_ldm.slurm'
+# Assuming your 'train_ldm.slurm' file is accessible as 'slurm/train_ldm.slurm'
 sbatch --partition="$SLURM_PARTITION" --job-name="$SLURM_JOB_NAME" \
-  slurm_scripts/cxr_ldm.slurm \
+  slurm/train_ldm.slurm \
   --latent_scale_factor "$LATENT_SCALE_FACTOR" \
   --prob_uncond "$PROB_UNCOND" \
   --guidance_scale "$GUIDANCE_SCALE" \
