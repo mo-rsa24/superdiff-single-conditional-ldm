@@ -6,6 +6,7 @@
 SWEEP_ID=$1
 PARTITION_NAME=$2
 OVERFIT_K_ARG=${3:-0} # Default to 0 (Full Train) if not provided
+AGENT_COUNT=${4:-1}
 
 # Export so the underlying script inherits it
 export OVERFIT_K="$OVERFIT_K_ARG"
@@ -59,7 +60,9 @@ kv "W&B Project"    "cxr-conditional-ldm"
 
 # --- Start Agent ---
 banner "Starting W&B Agent"
+kv "Agent Count" "$AGENT_COUNT"
+
 # The agent will now inherit all the exports above and run train_ldm.py successfully
-wandb agent --count 10 "prime_lab/cxr-conditional-ldm/${SWEEP_ID}"
+wandb agent --count "$AGENT_COUNT" "prime_lab/cxr-conditional-ldm/${SWEEP_ID}"
 
 banner "Done"

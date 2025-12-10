@@ -74,28 +74,6 @@ To avoid instability (e.g., exploding gradients, mode collapse), use the recomme
 | **Weight Decay (WD)** | `0.01` | `--weight_decay` |
 | **Model Capacity** | `96` | `--ldm_base_ch` |
 
-### 3.3 How to Run Single Experiments
-
-⚠️ **Important:** Before your first run, edit your launcher script (e.g., `train_ldm_conditional.sh`) and update the `AE_CKPT_PATH`, `AE_CONFIG_PATH`, and `LATENT_SCALE_FACTOR`.
-
-  * **Run a full training job with default presets:**
-
-    ```bash
-    ./launchers/single_runs/ldm/train_ldm_tb.sh full_train
-    ```
-
-  * **Run an overfitting job on 16 samples** (uses recommended presets: 1500 epochs, log every 25 steps, etc.):
-
-    ```bash
-    ./launchers/single_runs/ldm/train_ldm_tb.sh overfit_16
-    ```
-
-  * **Override presets for a custom experiment** (e.g., overfit on 32 samples but reduce epochs and disable W\&B logging):
-
-    ```bash
-    ./launchers/single_runs/ldm/train_ldm_tb.sh overfit_32 --epochs 500 --no-wandb
-    ```
-
 -----
 
 ## 4\. W\&B Hyperparameter Sweeps
@@ -161,8 +139,9 @@ This mode verifies the model's capacity to memorize a single input, which is a c
   --weight_decay 0.01 \
   --ldm_base_ch 96 \
   --epochs 1000 \
-  --sample_every 5 \
-  --num_sampling_steps 500 \
+  --sample_every 50 \
+  --log_every 50 \
+  --num_sampling_steps 300 \
   --partition bigbatch
 ```
 
@@ -193,26 +172,30 @@ To run focused stability sweeps on the `stampede|bigbatch|biggpu` partition, ens
 
 **Group 1: Overfit 16**
 
-  * **Config:** Set `overfit_k: 16` and `nodes: 4` below by simply specifying the following numbers.
+  * **Config:** Set `run_cap: 5` in `config/sweeps/conditional_ldm_sweep.yaml` to enforce a hard budget.
+  * **Launch Strategy:** Deploy **5 nodes**, where each agent executes **1 run** ($5 \text{ nodes} \times 1 \text{ run} = 5 \text{ total runs}$).
   * **Command:**
     ```bash
-    # Initialize
+    # Initialize Sweep
     wandb sweep config/sweeps/conditional_ldm_sweep.yaml --project cxr-conditional-ldm 
-    # Returns: <SWEEP_ID>
+
+    # Launch Swarm (Usage: ... <ID> <PARTITION> <K=16> <NODES=5> <RUNS_PER_NODE=1>)
     chmod +x launch_sweep_swarm.sh
-    ./launch_sweep_swarm.sh <SWEEP_ID> stampede 16 4
+    ./launch_sweep_swarm.sh <SWEEP_ID> stampede 16 5 1
     ```
 
 **Group 2: Overfit 32**
 
-  * **Config:** Set `overfit_k: 32` and `nodes: 4` below by simply specifying the following numbers.
+  * **Config:** Set `run_cap: 5` in `config/sweeps/conditional_ldm_sweep.yaml`.
+  * **Launch Strategy:** Deploy **5 nodes**, where each agent executes **1 run**.
   * **Command:**
     ```bash
-    # Initialize
+    # Initialize Sweep (or use existing ID)
     wandb sweep config/sweeps/conditional_ldm_sweep.yaml --project cxr-conditional-ldm 
-    # Returns: <SWEEP_ID>
+
+    # Launch Swarm (Usage: ... <ID> <PARTITION> <K=32> <NODES=5> <RUNS_PER_NODE=1>)
     chmod +x launch_sweep_swarm.sh
-    ./launch_sweep_swarm.sh <SWEEP_ID> stampede 32 4
+    ./launch_sweep_swarm.sh <SWEEP_ID> stampede 32 5 1
     ```
     
 ### 5.3 Full Train (Entire Dataset)
@@ -239,14 +222,17 @@ This is the standard training run on the entire conditional dataset.
 
 **Group 3: Full Training Mode**
 
-  * **Config:** Set `overfit_k: 0` and `nodes: 4` below by simply specifying the following numbers.
+  * **Config:** Set `run_cap: 5` in `config/sweeps/conditional_ldm_sweep.yaml`.
+  * **Launch Strategy:** Deploy **5 nodes**, where each agent executes **1 run**.
   * **Command:**
     ```bash
-    # Initialize
+    # Initialize Sweep (or use existing ID)
     wandb sweep config/sweeps/conditional_ldm_sweep.yaml --project cxr-conditional-ldm 
-    # Returns: <SWEEP_ID>
+
+    # Launch Swarm (Usage: ... <ID> <PARTITION> <K=0> <NODES=5> <RUNS_PER_NODE=1>)
+    # Note: K=0 triggers full dataset training
     chmod +x launch_sweep_swarm.sh
-    ./launch_sweep_swarm.sh <SWEEP_ID> stampede 0 4
+    ./launch_sweep_swarm.sh <SWEEP_ID> stampede 0 5 1
     ```
 
 ## Appendix: Interpreting LDM Training Metrics
