@@ -45,14 +45,14 @@ The LDM launchers use sensible presets for different training modes and allow fu
 
 These presets balance performance, logging verbosity, and sampling frequency for stability monitoring.
 
-| Parameter | `full_train` (Generalization) | `overfit_one` (Sanity Check) | `overfit_16` / `overfit_32` (Tiny Subset) | Rationale |
-| :--- | :--- | :--- | :--- | :--- |
-| **BATCH\_PER\_DEVICE** | 16 | 1 | 16 | Use max batch size for main training; small batch size for single-sample mode. |
-| **EPOCHS** | 1000 | 1000 | 1500 | More epochs needed for generalization/tiny subset training. |
-| **LOG\_EVERY (Steps)** | 100 | 10 | 25-50 | Log less frequently for long runs, more frequently for rapid checks. |
-| **SAMPLE\_EVERY (Epochs)** | 10 | 5 | 10 | **Sampling is expensive.** More frequent for fast convergence (`overfit_one`); less frequent for slow, full training to avoid slowing down the training loop. |
-| **USE\_WANDB** | Yes | No | Yes | Disable W\&B for quick, ephemeral sanity checks (`overfit_one`). |
-| **Num Sampling Steps** | **500 (Default)** | **500 (Default)** | **500 (Default)** | This is the default for Euler-Maruyama for good image quality. **Sweet Spot:** You can reduce this to **200-300** for faster checking, but only use **500+** for final results. |
+| Parameter | `full_train` (Generalization) | `overfit_one` (Sanity Check) | `overfit_16` / `overfit_32` (Tiny Subset) | Rationale                                                                                                                                                                           |
+| :--- | :--- | :--- | :--- |:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **BATCH\_PER\_DEVICE** | 16 | 1 | 16 | Use max batch size for main training; small batch size for single-sample mode.                                                                                                      |
+| **EPOCHS** | 1000 | 1000 | 1500 | More epochs needed for generalization/tiny subset training.                                                                                                                         |
+| **LOG\_EVERY (Steps)** | 100 | 10 | 25-50 | Log less frequently for long runs, more frequently for rapid checks.                                                                                                                |
+| **SAMPLE\_EVERY (Epochs)** | 10 | 5 | 10 | **Sampling is expensive.** More frequent for fast convergence (`overfit_one`); less frequent for slow, full training to avoid slowing down the training loop.                       |
+| **USE\_WANDB** | Yes | No | Yes | Disable W\&B for quick, ephemeral sanity checks (`overfit_one`).                                                                                                                    |
+| **Num Sampling Steps** | **500 (Default)** | **500 (Default)** | **500 (Default)** | This is the default for Ancestral Sampling for good image quality. **Sweet Spot:** You can reduce this to **200-300** for faster checking, but only use **500+** for final results. |
 
 #### Sampling Steps Sweet Spot (`--num_sampling_steps`)
 
