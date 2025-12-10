@@ -134,7 +134,9 @@ This mode verifies the model's capacity to memorize a single input, which is a c
 
 ```bash
 # Execute the launcher from the project root directory
-./train_ldm_conditional.sh overfit_one \
+./train_ldm_conditional.sh \
+  --job-name "ldm-sanity-check" \
+  --overfit_one \
   --lr 3e-5 \
   --weight_decay 0.01 \
   --ldm_base_ch 96 \
@@ -142,7 +144,8 @@ This mode verifies the model's capacity to memorize a single input, which is a c
   --sample_every 50 \
   --log_every 50 \
   --num_sampling_steps 300 \
-  --partition bigbatch
+  --partition bigbatch \
+  --use_ema 
 ```
 
 ### 5.2 Overfit 8 (Tiny Subset)
@@ -157,14 +160,18 @@ This tests generalization on a very small subset of $K=8$ samples, requiring mor
 
 ```bash
 # Execute the launcher from the project root directory
-./train_ldm_conditional.sh overfit_8 \
+./train_ldm_conditional.sh \
+  --job-name "ldm-tiny-subset" \
+  --overfit_k 8 \
   --lr 3e-5 \
   --weight_decay 0.01 \
   --ldm_base_ch 96 \
   --epochs 1500 \
-  --sample_every 10 \
+  --sample_every 100 \
+  --log_every 100 \
   --num_sampling_steps 500 \
-  --partition bigbatch
+  --partition stampede \
+  --use_ema
 ```
 #### Targeted Sweeps 
 
@@ -210,14 +217,17 @@ This is the standard training run on the entire conditional dataset.
 
 ```bash
 # Execute the launcher from the project root directory
-./train_ldm_conditional.sh full_train \
+./train_ldm_conditional.sh \
+  --job-name "full-ldm-training" \
   --lr 3e-5 \
   --weight_decay 0.01 \
   --ldm_base_ch 96 \
-  --epochs 1000 \
-  --sample_every 10 \
+  --epochs 1500 \
+  --sample_every 300 \
+  --log_every 300 \
   --num_sampling_steps 500 \
-  --partition bigbatch
+  --partition stampede \
+  --use_ema
 ```
 
 **Group 3: Full Training Mode**

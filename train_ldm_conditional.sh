@@ -5,7 +5,6 @@ set -euo pipefail
 export TASK="ALL_CXR" # Dataset name reflecting combined data
 export ENV_NAME="jax115"
 export IMG_SIZE="128"
-export TRAINING_MODE="${1:-full_train}" # Reads mode (e.g., full_train) from the first argument
 
 # ❗ CRITICAL: Set DISEASE to -1 to include ALL classes (TB and Normal) for conditional training
 export DISEASE="-1"
@@ -46,8 +45,9 @@ export SLURM_JOB_NAME="ldm-${TASK,,}-conditional"
 
 # --- 6. Robust Argument Parsing Loop ---
 OTHER_ARGS=()
-# Shift away the first argument (training_mode)
-if [[ "$#" -gt 0 ]]; then shift; fi
+
+export OVERFIT_ONE="0"
+export OVERFIT_K="0"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -63,7 +63,9 @@ while [[ $# -gt 0 ]]; do
     --log_every)           export LOG_EVERY="$2"; shift 2 ;;
     --sample_every)        export SAMPLE_EVERY="$2"; shift 2 ;;
     --num_sampling_steps)  export NUM_SAMPLING_STEPS="$2"; shift 2 ;;
-    *)                     OTHER_ARGS+=("$1"); shift ;; # Save unrecognized arg
+    --overfit_one)         export OVERFIT_ONE="1"; shift ;;
+    --overfit_k)           export OVERFIT_K="$2"; shift 2 ;;
+    *)                     echo "Unknown Argument: $1"; shift ;;
   esac
 done
 
