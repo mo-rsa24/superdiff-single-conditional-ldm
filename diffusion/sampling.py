@@ -41,7 +41,7 @@ def Euler_Maruyama_sampler(
         sigma = std * z_std  # Scaled standard deviation
         g = diffusion_coeff_fn(t)  # Diffusion coefficient g(t) = sqrt(beta(t))
         step_size = jnp.abs(dt)
-        drift = -0.5 * get_beta(t) * z - get_beta(t) * (sigma ** 2) * (-eps_hat / sigma)
+        drift = -0.5 * get_beta(t) * z - get_beta(t) * (-eps_hat / sigma)
         rng, step_rng = jax.random.split(rng)
         dw = jnp.sqrt(step_size) * jax.random.normal(step_rng, z.shape)
         z_next = z + drift * step_size + g * dw
