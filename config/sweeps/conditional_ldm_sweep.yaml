@@ -1,10 +1,7 @@
-# conditional_ldm_sweep.yaml
-# Defines the grouped sweeps for the Conditional LDM
-
 program: train_ldm.py  # The main Python script to run
 method: grid           # Use grid search for precise control over discrete values
 metric:
-  name: sample_diversity/pairwise_mse_mean # Maximize diversity to combat mode collapse
+  name: sample_diversity/pairwise_mse_mean
   goal: maximize
 
 parameters:
@@ -19,11 +16,24 @@ parameters:
   ldm_base_ch:
     values: [96, 128]             # Test the stable and higher capacity model sizes
 
-  # 3. Conditional Parameters (Testing the impact of label dropping)
-  prob_uncond:
-    values: [0.1, 0.2]            # Label dropout for Classifier-Free Guidance (CFG)
-  guidance_scale:
-    values: [3.0, 5.0]            # CFG scale for sampling
+ldm_ch_mults:
+    values: ["1,2,4", "1,2,4,4"]
+ldm_num_res_blocks:
+  values: [1, 2]
+ldm_attn_res:
+  values: ["16", "16,8"]
+
+
+use_ema:                        # <-- ADDED: Critical for stability
+    values: [True, False]
+ema_decay:
+    values: [0.999, 0.99]
+
+# 3. Conditional Parameters (Testing the impact of label dropping)
+prob_uncond:
+  values: [0.1, 0.2]            # Label dropout for Classifier-Free Guidance (CFG)
+guidance_scale:
+  values: [3.0, 5.0]            # CFG scale for sampling
 
 # --- Fixed Arguments (Passed to train_ldm.slurm via environment) ---
 command:
