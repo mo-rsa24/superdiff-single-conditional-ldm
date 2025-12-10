@@ -235,6 +235,42 @@ This is the standard training run on the entire conditional dataset.
     ./launch_sweep_swarm.sh <SWEEP_ID> stampede 0 5 1
     ```
 
+#### Verifying Which Partition Array Jobs Are Running On
+`1. The "Better Squeue" Alias`
+
+Run this command in your terminal to create the `sq` alias for this session:
+
+```bash
+alias sq='squeue -u $USER -o "%.18i %.12P %.20j %.8u %.2t %.10M %.6D %R"'
+```
+
+Now, simply type `sq` to check your jobs.
+
+  * **`%.18i`**: Allocates space for long array IDs (e.g., `170789_[1-5]`).
+  * **`%.12P`**: Shows the **Partition** clearly so you can verify if it says `stampede` or `bigbatch`.
+  * **`%R`**: Shows the "Reason" (why it's pending) or the "NodeList" (where it's running).
+
+To make it permanent, add that line to the bottom of your `~/.bashrc` file:
+
+```bash
+echo "alias sq='squeue -u $USER -o \"%.18i %.12P %.20j %.8u %.2t %.10M %.6D %R\"'" >> ~/.bashrc
+source ~/.bashrc
+```
+
+-----
+
+### 2\. Deep Dive with `scontrol`
+
+If you want to be 100% sure about the configuration of a specific job (even one that is pending), use `scontrol`.
+
+For an array job like `170789`, you can check the first task:
+
+```bash
+scontrol show job 170789_1
+```
+
+Look for the `Partition=` line in the output. If you applied the fix from my previous message, it should now explicitly say `Partition=stampede`.
+
 ## Appendix: Interpreting LDM Training Metrics
 
 Monitoring key metrics on your W\&B dashboard is critical for diagnosing instability.

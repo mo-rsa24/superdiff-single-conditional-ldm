@@ -16,7 +16,8 @@ echo "🚀 Launching a swarm of ${NUM_NODES} agents for Sweep: ${SWEEP_ID}"
 echo "   Partition: ${PARTITION} | Overfit_K: ${OVERFIT_K} | Jobs/Agent: ${AGENT_COUNT}"
 
 # Submit N separate jobs
-sbatch --array=1-${NUM_NODES} \
+sbatch --partition="$PARTITION" \
+       --array=1-${NUM_NODES} \
        --job-name="sweep-swarm" \
        slurm/ldm_sweep_agent.slurm "$SWEEP_ID" "$PARTITION" "$OVERFIT_K" "$AGENT_COUNT"
 
