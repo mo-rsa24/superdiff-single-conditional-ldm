@@ -76,7 +76,6 @@ def run_sampling_and_checkpoint(
             ae_model=ae_model,
             ae_params=unrep_ae_params,
             marginal_prob_std_fn=marginal_prob_std_fn,
-            diffusion_coeff_fn=diffusion_coeff_fn,
             latent_size=latent_size,
             batch_size=bs,
             z_channels=z_channels,
