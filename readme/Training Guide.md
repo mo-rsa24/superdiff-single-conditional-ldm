@@ -161,7 +161,9 @@ This mode verifies the model's capacity to memorize a single input, which is a c
   --weight_decay 0.01 \
   --ldm_base_ch 96 \
   --epochs 1000 \
-  --sample_every 5
+  --sample_every 5 \
+  --num_sampling_steps 500 \
+  --partition bigbatch
 ```
 
 ### 5.2 Overfit 8 (Tiny Subset)
@@ -181,7 +183,9 @@ This tests generalization on a very small subset of $K=8$ samples, requiring mor
   --weight_decay 0.01 \
   --ldm_base_ch 96 \
   --epochs 1500 \
-  --sample_every 10
+  --sample_every 10 \
+  --num_sampling_steps 500 \
+  --partition bigbatch
 ```
 
 ### 5.3 Full Train (Entire Dataset)
@@ -201,7 +205,9 @@ This is the standard training run on the entire conditional dataset.
   --weight_decay 0.01 \
   --ldm_base_ch 96 \
   --epochs 1000 \
-  --sample_every 10
+  --sample_every 10 \
+  --num_sampling_steps 500 \
+  --partition bigbatch
 ```
 
 

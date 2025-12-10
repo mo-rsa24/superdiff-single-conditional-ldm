@@ -48,6 +48,7 @@ USE_EMA="${USE_EMA:-0}" # Default to off if not set
 EMA_DECAY="${EMA_DECAY:-0.999}"
 BATCH_PER_DEVICE="${BATCH_PER_DEVICE:-4}"
 SAMPLE_EVERY="${SAMPLE_EVERY:-5}"
+NUM_SAMPLING_STEPS="${NUM_SAMPLING_STEPS:-500}"
 LOG_EVERY="${LOG_EVERY:-100}"
 SEED="${SEED:-42}"
 
@@ -93,6 +94,7 @@ ARGS=(
   --lr "$LR" --weight_decay "$WEIGHT_DECAY" --grad_clip "$GRAD_CLIP"
   --epochs "$EPOCHS" --batch_per_device "$BATCH_PER_DEVICE"
   --seed "$SEED" --sample_every "$SAMPLE_EVERY"
+  --num_sampling_steps "$NUM_SAMPLING_STEPS"
   --log_every "$LOG_EVERY"
   --output_root "$OUTPUT_ROOT" --exp_name "$EXP_NAME"
   --ldm_base_ch "$LDM_BASE_CH" \

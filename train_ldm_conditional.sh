@@ -22,6 +22,7 @@ export BATCH_PER_DEVICE="16"
 export EPOCHS="500"
 export LOG_EVERY="100"
 export SAMPLE_EVERY="10"
+export NUM_SAMPLING_STEPS="500"
 export SAMPLE_BATCH_SIZE="16"
 export LDM_CH_MULTS="1,2,4"
 export LDM_NUM_RES_BLOCKS="2"
@@ -60,6 +61,7 @@ while [[ $# -gt 0 ]]; do
     --latent_scale_factor) export LATENT_SCALE_FACTOR="$2"; shift 2 ;;
     --epochs)              export EPOCHS="$2"; shift 2 ;;
     --log_every)           export LOG_EVERY="$2"; shift 2 ;;
+    --num_sampling_steps)  export NUM_SAMPLING_STEPS="$2"; shift 2 ;;
     *)                     OTHER_ARGS+=("$1"); shift ;; # Save unrecognized arg
   esac
 done
@@ -103,6 +105,7 @@ sbatch --partition="$SLURM_PARTITION" --job-name="$SLURM_JOB_NAME" \
   --guidance_scale "$GUIDANCE_SCALE" \
   --use_ema "$USE_EMA" \
   --ema_decay "$EMA_DECAY" \
-  --class_filter "$DISEASE"
+  --class_filter "$DISEASE" \
+  --num_sampling_steps "$NUM_SAMPLING_STEPS"
 
 echo "✅ Job successfully submitted!"
