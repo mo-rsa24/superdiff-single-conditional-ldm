@@ -193,28 +193,26 @@ To run focused stability sweeps on the `stampede|bigbatch|biggpu` partition, ens
 
 **Group 1: Overfit 16**
 
-  * **Config:** Set `overfit_k: 16` below by simply specifying the number.
+  * **Config:** Set `overfit_k: 16` and `nodes: 4` below by simply specifying the following numbers.
   * **Command:**
     ```bash
     # Initialize
     wandb sweep config/sweeps/conditional_ldm_sweep.yaml --project cxr-conditional-ldm 
     # Returns: <SWEEP_ID>
-    
-    # Launch on Stampede
-    sbatch slurm/ldm_sweep_agent.slurm <SWEEP_ID> stampede 16
+    chmod +x launch_sweep_swarm.sh
+    ./launch_sweep_swarm.sh <SWEEP_ID> stampede 16 4
     ```
 
 **Group 2: Overfit 32**
 
-  * **Config:** Set `overfit_k: 32` below by simply specifying the number.
+  * **Config:** Set `overfit_k: 32` and `nodes: 4` below by simply specifying the following numbers.
   * **Command:**
     ```bash
     # Initialize
     wandb sweep config/sweeps/conditional_ldm_sweep.yaml --project cxr-conditional-ldm 
     # Returns: <SWEEP_ID>
-    
-    # Launch on Stampede
-    sbatch slurm/ldm_sweep_agent.slurm <SWEEP_ID> stampede 32
+    chmod +x launch_sweep_swarm.sh
+    ./launch_sweep_swarm.sh <SWEEP_ID> stampede 32 4
     ```
     
 ### 5.3 Full Train (Entire Dataset)
@@ -239,17 +237,16 @@ This is the standard training run on the entire conditional dataset.
   --partition bigbatch
 ```
 
-**Group 2: Overfit 32**
+**Group 3: Full Training Mode**
 
-  * **Config:** Set `overfit_k: 0` below by simply specifying the number.
+  * **Config:** Set `overfit_k: 0` and `nodes: 4` below by simply specifying the following numbers.
   * **Command:**
     ```bash
     # Initialize
     wandb sweep config/sweeps/conditional_ldm_sweep.yaml --project cxr-conditional-ldm 
     # Returns: <SWEEP_ID>
-    
-    # Launch on Stampede
-    sbatch slurm/ldm_sweep_agent.slurm <SWEEP_ID> stampede 0
+    chmod +x launch_sweep_swarm.sh
+    ./launch_sweep_swarm.sh <SWEEP_ID> stampede 0 4
     ```
 
 ## Appendix: Interpreting LDM Training Metrics
