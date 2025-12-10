@@ -17,7 +17,7 @@ kv(){ printf "  ${CYN}%-22s${RST} %s\n" "$1" "$2";
 # Defaults (override via env)
 # ----------------------------
 WORKDIR="${WORKDIR:-$PWD}"
-PYFILE="${PYFILE:-run/ldm.py}"
+PYFILE="${PYFILE:-train_ldm.py}"
 DATA_ROOT="/datasets/mmolefe/cleaned"
 LATENT_SCALE_FACTOR="${LATENT_SCALE_FACTOR:-1.0}"
 # Data & Debug
