@@ -11,8 +11,8 @@ from typing import Any, Tuple
 # Local Imports
 from utils import logger
 from utils.model_utils import TrainStateWithEMA
-from diffusion.sampling import Euler_Maruyama_sampler
-from diffusion.sde_vp import marginal_prob_std_fn, diffusion_coeff_fn
+from diffusion.sampling import Ancestral_Sampler
+from diffusion.sde_vp import marginal_prob_std_fn
 from models.ldm_unet import ScoreNet
 from models.ae_kl import AutoencoderKL
 
@@ -69,7 +69,7 @@ def run_sampling_and_checkpoint(
         sample_rng_base, step_rng = jax.random.split(sample_rng_base)
 
         # Sampler Call (using Euler-Maruyama with CFG)
-        samples_grid, final_latent = Euler_Maruyama_sampler(
+        samples_grid, final_latent = Ancestral_Sampler(
             rng=step_rng,
             ldm_model=ldm_model,
             ldm_params=sampling_params,
