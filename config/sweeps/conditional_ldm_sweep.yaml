@@ -17,8 +17,6 @@ parameters:
     values: [1, 2]
   ldm_attn_res:
     values: ["16", "16,8"]
-  use_ema:
-      values: [True, False]
   ema_decay:
       values: [0.999, 0.99]
   prob_uncond:
@@ -32,10 +30,18 @@ command:
   - ${program}
   - ${args}
   - --wandb
-  - --task "ALL_CXR"              # Overrides the default 'TB' in config_utils.py
-  - --class_filter -1             # CRITICAL: Ensures all classes (TB, Normal) are included
-  - --data_root "/datasets/mmolefe/cleaned" # Confirmed path
-  - --ae_ckpt_path "runs/unified-ae-128-z4_z4_20251008-161725/20251008-170121/ckpts/last.flax"
-  - --ae_config_path "runs/unified-ae-128-z4_z4_20251008-161725/20251008-170121/run_meta.json"
-  - --latent_scale_factor 0.997570
-  - --epochs 1000                 # Set a higher epoch count for sweeps
+  - --task
+  - ALL_CXR
+  - --class_filter
+  - "-1"          # Quotes strictly needed for negative numbers in YAML lists
+  - --data_root
+  - /datasets/mmolefe/cleaned
+  - --ae_ckpt_path
+  - runs/unified-ae-128-z4_z4_20251008-161725/20251008-170121/ckpts/last.flax
+  - --ae_config_path
+  - runs/unified-ae-128-z4_z4_20251008-161725/20251008-170121/run_meta.json
+  - --latent_scale_factor
+  - "0.997570"
+  - --epochs
+  - "1000"
+  - --use_ema

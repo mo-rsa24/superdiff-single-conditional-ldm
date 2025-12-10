@@ -12,11 +12,18 @@ if [ -z "$SWEEP_ID" ] || [ -z "$PARTITION" ]; then
     exit 1
 fi
 
+# 1. Define and Create a Log Directory
+LOG_DIR="slurm_logs"
+mkdir -p "$LOG_DIR"
+
 echo "🚀 Launching a swarm of ${NUM_NODES} agents for Sweep: ${SWEEP_ID}"
 echo "   Partition: ${PARTITION} | Overfit_K: ${OVERFIT_K} | Jobs/Agent: ${AGENT_COUNT}"
+echo "   Logs will be saved to: ${LOG_DIR}/"
 
 # Submit N separate jobs
 sbatch --partition="$PARTITION" \
+       --output="${LOG_DIR}/%x-%A_%a.out" \
+       --error="${LOG_DIR}/%x-%A_%a.err" \
        --array=1-${NUM_NODES} \
        --job-name="sweep-swarm" \
        slurm/ldm_sweep_agent.slurm "$SWEEP_ID" "$PARTITION" "$OVERFIT_K" "$AGENT_COUNT"
