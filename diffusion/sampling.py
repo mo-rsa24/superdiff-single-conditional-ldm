@@ -26,7 +26,7 @@ def Ancestral_Sampler(
         num_steps: int = 500,
 ) -> Tuple[Any, jnp.ndarray]:
     """
-    Ancestral Sampling (DDPM-style) for Variance Preserving SDE.
+    Ancestral Sampling
     """
     eps_init, rng = jax.random.split(rng)
     z = jax.random.normal(eps_init, (batch_size, latent_size, latent_size, z_channels))
@@ -66,13 +66,15 @@ def Ancestral_Sampler(
     x_rec_np = (x_rec_np - p_low) / (p_high - p_low + 1e-8)
     x_rec_np = np.clip(x_rec_np, 0.0, 1.0)
     x_rec_np = (x_rec_np * 2.0) - 1.0
+    x_rec_np = np.where(x_rec_np < -0.98, -1.0, x_rec_np)
+
     x_rec_np = np.transpose(x_rec_np, (0, 3, 1, 2))
     x_rec_tensor = make_grid(
         torch.from_numpy(x_rec_np),
         nrow=4,
         padding=2,
         pad_value=-1,  # Black padding
-        normalize=False,  # We manually normalized above
+        normalize=False,
         value_range=(-1, 1)
     )
     return x_rec_tensor, final_z
