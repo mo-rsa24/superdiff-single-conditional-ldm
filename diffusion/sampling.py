@@ -62,12 +62,14 @@ def Ancestral_Sampler(
     x_rec = ae_model.apply({'params': ae_params}, z_unscaled, method=ae_model.decode, train=False)
     x_rec_np = np.asarray(x_rec)
     x_rec_np = (x_rec_np * 2.0) - 1.0  # Assuming VAE outputs [0,1], shift to [-1, 1] for saving
+    x_rec_np = np.where(x_rec_np < -0.95, -1.0, x_rec_np)
     x_rec_np = np.transpose(x_rec_np, (0, 3, 1, 2))
 
     x_rec_tensor = make_grid(
         torch.from_numpy(x_rec_np),
         nrow=4,
         padding=2,
+        pad_value=-1,
         normalize=True,
         value_range=(-1, 1)
     )
