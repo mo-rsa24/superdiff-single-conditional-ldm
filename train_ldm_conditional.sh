@@ -13,7 +13,7 @@ export DISEASE="-1"
 # Based on the Guide to Hyperparameter Experiments for LDM Training
 export LR="3e-5"            # Safe Learning Rate
 export WEIGHT_DECAY="0.01"  # Appropriate Regularization
-export LDM_BASE_CH="96"     # Smaller, Stable Model Capacity
+export LDM_BASE_CH="128"     # Smaller, Stable Model Capacity
 
 # General LDM Architecture & Training Settings
 export GRAD_CLIP="1.0"
@@ -23,9 +23,9 @@ export LOG_EVERY="100"
 export SAMPLE_EVERY="100"
 export NUM_SAMPLING_STEPS="500"
 export SAMPLE_BATCH_SIZE="16"
-export LDM_CH_MULTS="1,2,4"
+export LDM_CH_MULTS="1,2,4,4"
 export LDM_NUM_RES_BLOCKS="2"
-export LDM_ATTN_RES="16"
+export LDM_ATTN_RES="16,8"
 export WANDB="1"
 
 # --- 3. CFG/EMA CONFIGURATION ---
